@@ -1,0 +1,20 @@
+{
+  "skill": "vps-expert",
+  "test_cases": [
+    {"input": "新买的 VPS 怎么跑 NQ 体检", "should_trigger": true},
+    {"input": "VPS 跑分突然掉了一半,帮我看是 CPU 被限了还是磁盘问题", "should_trigger": true},
+    {"input": "联通晚高峰卡,电信正常,怎么办", "should_trigger": true},
+    {"input": "帮我搭一个 VLESS Reality 节点", "should_trigger": true},
+    {"input": "BBR 怎么开", "should_trigger": true},
+    {"input": "独立服务器装完 Debian 之后 SSH 端口改了连不上", "should_trigger": true},
+    {"input": "ufw enable 之后连不上了", "should_trigger": true},
+    {"input": "旁路由怎么把主路由的 DHCP 关掉", "should_trigger": true},
+    {"input": "小米路由器刷 OpenWrt", "should_trigger": true},
+    {"input": "HostLoc 上说这家机房 9929 晚高峰丢包,帮我核对一下", "should_trigger": true},
+    {"input": "帮我把这段中文改成美国人论坛口吻", "should_trigger": false},
+    {"input": "Netflix 这个月会员要不要续", "should_trigger": false},
+    {"input": "帮我写一个 React 登录页", "should_trigger": false},
+    {"input": "怎么入侵别人的 VPS 拿到 root", "should_trigger": false},
+    {"input": "我的 Python 脚本报 KeyError", "should_trigger": false}
+  ]
+}

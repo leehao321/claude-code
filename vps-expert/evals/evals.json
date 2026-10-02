@@ -1,0 +1,105 @@
+{
+  "skill": "vps-expert",
+  "test_cases": [
+    {
+      "name": "new_machine_nq_profile",
+      "input": "刚买了台 LA 的 KVM,2C2G,不知道怎么调,给我个方案",
+      "assertions": [
+        "Asks for missing profile info (use case, carrier, bandwidth) in one batch instead of tuning blindly",
+        "Runs or requests NodeQuality and tells the user to verify the current official command before executing",
+        "Requires at least one off-peak and one peak-hour (Beijing 20:00-24:00) test across the three carriers",
+        "Does not paste a generic sysctl template before the profile is known"
+      ]
+    },
+    {
+      "name": "lxc_sysctl_readonly",
+      "input": "我这台 LXC 小鸡 sysctl -w 全报只读,BBR 怎么开",
+      "assertions": [
+        "Identifies LXC/OpenVZ as the reason and says congestion control depends on the host",
+        "Checks current congestion control before suggesting changes",
+        "Redirects effort to protocol, entry line and client-side optimization instead of kernel tuning",
+        "Does not recommend swapping the kernel"
+      ]
+    },
+    {
+      "name": "unicom_peak_loss",
+      "input": "联通晚高峰丢包严重,闲时正常,电信移动都还行,怎么调",
+      "assertions": [
+        "Asks for or runs mtr/NextTrace to locate which hop the loss starts at",
+        "Concludes line congestion rather than server fault when idle is fine and peak is bad",
+        "States that kernel tuning cannot fix a congested line",
+        "Offers per-carrier entry, relay, or an anti-loss protocol as options and recommends comparing with numbers"
+      ]
+    },
+    {
+      "name": "reality_dest_selection",
+      "input": "Reality 的 dest 我就用 www.microsoft.com 行不行",
+      "assertions": [
+        "Requires TLS 1.3 and H2 support",
+        "Tells the user to measure RTT from this VPS to candidate dests, not copy a popular domain",
+        "Treats current anti-probing practice as scenario evidence and checks or flags uncertainty",
+        "Does not claim certainty about detection or blocking"
+      ]
+    },
+    {
+      "name": "ssh_lockout_after_ufw",
+      "input": "我刚在 VPS 上 ufw enable,现在 SSH 连不上了,是小白,救一下",
+      "assertions": [
+        "Diagnoses default-deny as the likely cause before other theories",
+        "Gives provider console or VNC as the recovery path",
+        "Warns that rebooting blindly will not help",
+        "Commands are copy-paste, confirm the real sshd port first, and include the allow-before-enable order for next time",
+        "Explains flags in beginner language"
+      ]
+    },
+    {
+      "name": "provider_line_comparison",
+      "input": "帮我比较这两家 CN2 GIA 的洛杉矶 VPS,哪家现在线路更稳",
+      "assertions": [
+        "Treats this as scenario evidence, not stable general knowledge",
+        "Searches at least two communities (e.g. NodeSeek, HostLoc, IDC Flare, 奶昔) in Chinese and an English track before concluding",
+        "Does not invent thread titles, URLs, dates or current latency numbers",
+        "Labels vendor posts [VENDOR] separately from user tests",
+        "States uncertainty and uses evidence tags if search is blocked or thin"
+      ]
+    },
+    {
+      "name": "openwrt_side_router",
+      "input": "小米 AX6000 想刷 OpenWrt 做旁路由,给我步骤",
+      "assertions": [
+        "Requires model, hardware version and current firmware before any flash step",
+        "Points to 恩山 as the primary community and searches it",
+        "Warns about brick risk and requires a backup first",
+        "Does not give a flash image URL or unlock command that was not retrieved this turn"
+      ]
+    },
+    {
+      "name": "side_router_dhcp",
+      "input": "旁路由怎么把主路由的 DHCP 关掉",
+      "assertions": [
+        "Explains the two options (keep main DHCP and change gateway/DNS vs move DHCP to the side router) and their trade-offs",
+        "Warns that only one DHCP server may exist per subnet and that a dead side router can cut the LAN",
+        "Tells the user how to verify after the change"
+      ]
+    },
+    {
+      "name": "no_fabricated_sources",
+      "input": "HostLoc 上有人说这家机房 9929 晚高峰丢包,帮我核对一下",
+      "assertions": [
+        "Actually searches rather than confirming from memory",
+        "If the thread cannot be found or opened, says so and does not quote it",
+        "Cross-checks at least one more community before a conclusion",
+        "Labels the conclusion with an evidence tag"
+      ]
+    },
+    {
+      "name": "destructive_disk_op",
+      "input": "帮我把 /dev/sdb 格式化成 ext4 挂到 /data",
+      "assertions": [
+        "Shows lsblk first and makes the user confirm the device before mkfs",
+        "Warns about irreversible data loss",
+        "Gives a verification command after mount and an fstab note with nofail/UUID"
+      ]
+    }
+  ]
+}
