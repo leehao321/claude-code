@@ -9,7 +9,7 @@
 ```bash
 uname -r                                   # 内核版本
 systemd-detect-virt                        # 虚拟化类型
-sysctl net.ipv4.tcp_available_congestion_control
+sysctl net.ipv4.tcp_available_congestion_control   # bbr 是内核模块,未加载时不会列出,见第 4 节 modprobe tcp_bbr
 sysctl net.ipv4.tcp_congestion_control net.core.default_qdisc
 free -h; nproc; df -h
 ip -br a; ip route                         # 网卡、MTU、路由
@@ -108,11 +108,14 @@ ping -M do -s 1472 -c 3 <目标>     # 1472 + 28 = 1500
 
 ```bash
 # swap 文件(示例 1G)
-fallocate -l 1G /swapfile && chmod 600 /swapfile
-mkswap /swapfile && swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
-sysctl vm.swappiness=10
+swapon --show; df -h /; ls -l /swapfile 2>&1      # 先确认没有现成 swap、空间够、文件不存在
+fallocate -l 1G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+cp /etc/fstab /etc/fstab.bak.$(date +%F)
+grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+echo 'vm.swappiness=10' >> /etc/sysctl.d/99-tuning.conf && sysctl --system   # 持久化;只写 sysctl -w 重启就丢
 ```
+
+btrfs 上不能直接用 `fallocate` 建 swap 文件:用 `btrfs filesystem mkswapfile --size 1g /swapfile`(btrfs-progs ≥ 6.1),或 `truncate -s 0 /swapfile; chattr +C /swapfile; dd if=/dev/zero of=/swapfile bs=1M count=1024`,再 `chmod 600`、`mkswap`、`swapon`。
 
 zram 示例(Debian/Ubuntu,装包方式因发行版而异,先确认内核有 zram 模块):
 

@@ -72,6 +72,98 @@
     {
       "input": "帮我写个 Python 爬虫",
       "should_trigger": false
+    },
+    {
+      "input": "魔法上网怎么搭",
+      "should_trigger": true
+    },
+    {
+      "input": "软路由装 OpenWrt",
+      "should_trigger": true
+    },
+    {
+      "input": "联通丢包",
+      "should_trigger": true
+    },
+    {
+      "input": "线路质量怎么看",
+      "should_trigger": true
+    },
+    {
+      "input": "VPS 磁盘满了服务起不来",
+      "should_trigger": true
+    },
+    {
+      "input": "服务器装 fail2ban 怎么配",
+      "should_trigger": true
+    },
+    {
+      "input": "VPS 上做端口转发",
+      "should_trigger": true
+    },
+    {
+      "input": "这家机房的 VPS 值不值得买",
+      "should_trigger": true
+    },
+    {
+      "input": "服务器 ping 国内一直 200ms+ 怎么回事",
+      "should_trigger": true
+    },
+    {
+      "input": "机器 IP 好像被墙了换端口还不行",
+      "should_trigger": true
+    },
+    {
+      "input": "my LowEndTalk VPS only gets 20Mbps from China",
+      "should_trigger": true
+    },
+    {
+      "input": "Debian 根分区满了服务起不来(VPS)",
+      "should_trigger": true
+    },
+    {
+      "input": "Python 里怎么用 paramiko 写 ssh 客户端代码",
+      "should_trigger": false
+    },
+    {
+      "input": "Windows 上 git 的 ssh key 怎么配到 GitHub",
+      "should_trigger": false
+    },
+    {
+      "input": "React 里 DNS prefetch 怎么写",
+      "should_trigger": false
+    },
+    {
+      "input": "给我的网站在 Cloudflare 配 DNS 记录和 CDN 缓存",
+      "should_trigger": false
+    },
+    {
+      "input": "K8s 里 Pod 一直 CrashLoopBackOff 怎么看日志",
+      "should_trigger": false
+    },
+    {
+      "input": "区块链节点同步很慢怎么办",
+      "should_trigger": false
+    },
+    {
+      "input": "家里宽带测速只有 100M,是不是运营商限速",
+      "should_trigger": false
+    },
+    {
+      "input": "我的 ChatGPT Plus 订阅账单为什么多扣了 30 块",
+      "should_trigger": false
+    },
+    {
+      "input": "这款手机值不值得买",
+      "should_trigger": false
+    },
+    {
+      "input": "帮我设计一个 CDN 缓存策略的宣传文案",
+      "should_trigger": false
+    },
+    {
+      "input": "怎么 DDoS 别人的服务器",
+      "should_trigger": false
     }
   ]
 }

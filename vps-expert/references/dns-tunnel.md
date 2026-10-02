@@ -30,6 +30,7 @@ dig +trace example.com | tail -20              # 从根逐级查,定位哪一级
 - "解锁 DNS / 分流"通常是把特定域名的解析指到第三方机器;好处是简单,风险是**把部分流量交给不可控的第三方**,且解锁状态随时变。
 - 建议:优先用自己的出口(换 IP / 原生 IP 落地机);必须用第三方时,告知用户风险、只对必要域名生效、定期复测。
 - 是否可用是时效性问题,不凭记忆承诺。
+- 解锁流媒体/AI 可能违反对应服务的 ToS 或地区授权,风险由用户自担;只讲连通与复测方法,不教规避账号风控、批量养号或绕过地区授权校验。
 
 ## 4. WireGuard 隧道要点
 
@@ -54,20 +55,21 @@ AllowedIPs = 10.8.0.2/32
 ```
 
 ```bash
+chmod 600 /etc/wireguard/wg0.conf   # 含私钥,权限过宽 wg-quick 会警告
 wg-quick up wg0
 wg show                      # 看 latest handshake,有时间说明握手成功
 systemctl enable wg-quick@wg0
 ```
 
 - 对端在 NAT 后:对端加 `PersistentKeepalive = 25`。
-- 做全局转发要开 `net.ipv4.ip_forward=1` 并配置 NAT/防火墙;**先确认商家允许转发流量**。
+- 做全局转发要开 `net.ipv4.ip_forward=1` 并配置 NAT/防火墙;**先确认商家允许转发流量**。把 `AllowedIPs` 设为 `0.0.0.0/0` 会改写默认路由,可能切断你自己的 SSH 会话:先确认有控制台/VNC,并为 SSH 来源地址保留直连路由,再启用。
 - UDP 在部分网络/时段会被 QoS:握手正常但速度异常时,对比 TCP 方案(见 `proxy-recipes.md`)。
 
 ## 5. 端口转发与中转
 
-- 最简单:`realm` / `gost` / nftables DNAT 做端口转发;需要加密时用 Xray/sing-box 链式出站(见 `proxy-recipes.md` 第 6 节)。
-- 开启转发:`sysctl net.ipv4.ip_forward`;确认防火墙放行转发链,别只放行 INPUT。
-- 每多一层增加延迟和故障点;用"直连 vs 经中转"的三网实测数字决定要不要上。
+- 转发方式选型、链路设计、加密隧道与是否上中转的判断,见 `proxy-recipes.md` §6;本节只补系统层细节。
+- 开启转发:`sysctl net.ipv4.ip_forward` 要为 1;确认防火墙放行转发链,别只放行 INPUT。
+- **用 ufw 的机器有个坑**:`/etc/ufw/sysctl.conf` 默认 `net/ipv4/ip_forward=0`,ufw 每次启用或重载都会覆盖 `sysctl.d` 里的设置,FORWARD 链默认也是 DROP。要在 `/etc/ufw/sysctl.conf` 里把 `net/ipv4/ip_forward` 设为 1,并把 `/etc/default/ufw` 的 `DEFAULT_FORWARD_POLICY` 改为 `ACCEPT`(或加 `ufw route allow` 规则),否则 ufw 开着时转发不通。
 
 ## 6. 隧道 MTU
 
