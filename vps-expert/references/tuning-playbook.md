@@ -66,7 +66,15 @@ net.ipv4.tcp_syncookies = 1
 
 ## 4. 分虚拟化 / 分内存策略
 
-**KVM**:上面模板可用。内核 ≥ 4.9 才有 BBR;想上 BBRv3 或更新队列需要换内核,属高风险,见 SKILL.md Step 3。
+**KVM**:上面模板可用。启用 BBR 后务必验证,不要只看配置文件:
+
+```bash
+modprobe tcp_bbr 2>/dev/null; lsmod | grep bbr
+sysctl net.ipv4.tcp_congestion_control net.core.default_qdisc   # 期望 bbr / fq
+sysctl net.ipv4.tcp_available_congestion_control                # 里面要有 bbr
+```
+
+内核 ≥ 4.9 才有 BBR;想上 BBRv3 或更新队列需要换内核,属高风险,见 SKILL.md Step 3。
 
 **LXC / OpenVZ**:`sysctl -w` 多数会报只读。此时:
 - 不要折腾内核参数,把精力放在协议选择、入口线路和客户端侧。
@@ -104,6 +112,13 @@ fallocate -l 1G /swapfile && chmod 600 /swapfile
 mkswap /swapfile && swapon /swapfile
 echo '/swapfile none swap sw 0 0' >> /etc/fstab
 sysctl vm.swappiness=10
+```
+
+zram 示例(Debian/Ubuntu,装包方式因发行版而异,先确认内核有 zram 模块):
+
+```bash
+apt install -y zram-tools && systemctl enable --now zramswap   # 包名/服务名以发行版为准
+swapon --show; free -h                                         # 验证
 ```
 
 LXC/OpenVZ 常不允许自建 swap;KVM 小内存也可以考虑 zram(压缩内存,适合 IO 慢的小鸡)。限制日志:`journalctl --vacuum-size=50M`,并在 `journald.conf` 设 `SystemMaxUse=50M`。
