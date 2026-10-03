@@ -14,7 +14,7 @@ printf '%s\n' "$fm" | grep -qx 'name: vps-expert' || err "frontmatter 里 name �
 desc=$(printf '%s\n' "$fm" | sed -n 's/^description: *//p')
 [ -n "$desc" ] || err "description 为空"
 case "$desc" in '>'|'|'|'>-'|'|-'|'>+'|'|+') err "description 不能用折叠/块标量写法(长度检查会失效),请写成单行";; esac
-dlen=$(printf '%s' "$desc" | python3 -c 'import sys; print(len(sys.stdin.read()))')   # 按字符计数,不受 locale 影响
+dlen=$(printf '%s' "$desc" | python3 -c 'import sys; print(len(sys.stdin.buffer.read().decode("utf-8")))')   # 按字符计数,显式 UTF-8 解码,不受 locale 影响
 [ "$dlen" -le 1024 ] || err "description 超过 1024 字符(当前 $dlen)"
 
 # ---- references:SKILL.md 引用的必须存在;存在的必须在索引节出现 ----

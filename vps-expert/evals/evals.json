@@ -5,10 +5,10 @@
       "name": "new_machine_nq_profile",
       "input": "刚买了台 LA 的 KVM,2C2G,不知道怎么调,给我个方案",
       "assertions": [
-        "Asks for missing profile info (use case, carrier, bandwidth) in one batch instead of tuning blindly",
-        "Runs or requests NodeQuality and tells the user to verify the current official command before executing",
+        "Asks in one batch for the minimal profile (use case, plus carrier/city if it plans peak-hour tests) and/or has the user paste the read-only command output (virtualization, memory, congestion control), instead of tuning blindly; does not require bandwidth or plan details up front",
+        "Runs or requests NodeQuality, says NQ is not read-only and needs consent, and tells the user to verify the current official command before executing",
         "Requires at least one off-peak and one peak-hour (Beijing 20:00-24:00) test across the three carriers",
-        "Does not paste a generic sysctl template before the profile is known"
+        "Does not paste a generic sysctl template or swap commands before the profile is known"
       ]
     },
     {
@@ -50,7 +50,7 @@
       "assertions": [
         "Diagnoses ufw default-deny as the likely cause and says a reboot will not help",
         "Gives provider console/VNC as the recovery path in plain words, and tells the user to use the panel's reset-root-password option if the console asks for a password they never set",
-        "Tells the user to confirm the real sshd port from the console (e.g. `ss -lntp | grep -E 'sshd|systemd'`) before running `ufw allow`, rather than hard-coding 22",
+        "Tells the user to confirm the real sshd port from the console (e.g. `ss -lntp | grep -E '\"sshd\"|\"systemd\"'`) before running `ufw allow`, rather than hard-coding 22",
         "Main fix commands are in a fenced code block, with the port taken from that check as a placeholder or an explicit instruction to substitute it",
         "If it gives an order for next time, `ufw allow <ssh port>/tcp` and a rule check come before `ufw enable`",
         "Explains in one plain sentence each what `ufw allow` does and what the port number means",
@@ -132,9 +132,9 @@
       "name": "dns_leak_check",
       "input": "开了代理还是感觉 DNS 被运营商污染,怎么查",
       "assertions": [
-        "Distinguishes local DNS problem from network problem using dig against a specified upstream",
+        "Distinguishes a local DNS problem from a network problem using dig against a specified upstream",
         "Explains how to check DNS leak on the client side and split domestic/overseas resolution",
-        "Does not promise third-party unlock DNS availability and flags the risk"
+        "If it suggests any third-party, public or unlock DNS, it states the risk that part of the traffic goes to a third party and does not promise availability (unverified availability marked [UNKNOWN]); otherwise it does not introduce unsolicited third-party DNS"
       ]
     },
     {

@@ -65,7 +65,12 @@ systemctl enable wg-quick@wg0
 ```
 
 - 对端在 NAT 后:对端加 `PersistentKeepalive = 25`。
-- 做全局转发要开 `net.ipv4.ip_forward=1` 并配置 NAT/防火墙;**先确认商家允许转发流量**。把 `AllowedIPs` 设为 `0.0.0.0/0` 会改写默认路由,可能切断你自己的 SSH 会话:先确认有控制台/VNC,并为 SSH 来源地址保留直连路由,再启用。
+- 做全局转发要开 `net.ipv4.ip_forward=1` 并配置 NAT/防火墙;**先确认商家允许转发流量**。把 `AllowedIPs` 设为 `0.0.0.0/0`(全局隧道)会改写默认路由,可能切断你自己的 SSH 会话。**全局隧道的必做清单**:
+  1. 先确认有控制台/VNC。
+  2. `wg-quick up` 之前加定时自救:`systemd-run --on-active=5m --unit=wg-rollback wg-quick down wg0`。
+  3. 为 SSH 来源地址保留直连路由:`ip route add <SSH来源IP>/32 via <原网关> dev <原网卡>`(也可写进 wg0.conf 的 `PostUp`)。
+  4. 新开一个 SSH 会话验证成功后,取消自救:`systemctl stop wg-rollback.timer`。
+  5. 验证通过之前**不要** `systemctl enable wg-quick@wg0`,否则配置有问题时每次重启都会再锁一次。
 - UDP 在部分网络/时段会被 QoS:**握手正常**但速度异常时,才对比 TCP 方案(见 `proxy-recipes.md`)。
 - 全局转发还需要 ufw 的转发规则和 NAT,见第 5 节。
 
@@ -73,7 +78,20 @@ systemctl enable wg-quick@wg0
 
 - 转发方式选型、链路设计、加密隧道与是否上中转的判断,见 `proxy-recipes.md` §6;本节只补系统层细节。
 - 开启转发:`sysctl net.ipv4.ip_forward` 要为 1;确认防火墙放行转发链,别只放行 INPUT。
-- **用 ufw 的机器有个坑**:`/etc/ufw/sysctl.conf` 默认把 `net/ipv4/ip_forward` 注释掉(不设置),真正默认挡住转发的是 `/etc/default/ufw` 里的 `DEFAULT_FORWARD_POLICY="DROP"`。做法:取消注释 `net/ipv4/ip_forward=1`(ufw 启用/重载时会应用它,若 `sysctl.d` 里设了不同值,以后应用者为准),把 `DEFAULT_FORWARD_POLICY` 改为 `ACCEPT` 或加 `ufw route allow` 规则;NAT/MASQUERADE 写在 `/etc/ufw/before.rules` 的 `*nat` 段;然后 `ufw reload`,并用 `sysctl net.ipv4.ip_forward` 验证。
+- **用 ufw 的机器有个坑**:`/etc/ufw/sysctl.conf` 默认把 `net/ipv4/ip_forward` 注释掉(不设置),真正默认挡住转发的是 `/etc/default/ufw` 里的 `DEFAULT_FORWARD_POLICY="DROP"`。**保持 `DROP`,只放行你要的那条路径**:
+  1. 取消注释 `/etc/ufw/sysctl.conf` 里的 `net/ipv4/ip_forward=1`(ufw 启用/重载时会应用它,若 `sysctl.d` 里设了不同值,以后应用者为准)。
+  2. 放行从隧道口到外网口的转发:`ufw route allow in on <wg接口> out on <外网网卡>`。
+  3. NAT/MASQUERADE 写在 `/etc/ufw/before.rules` 文件开头(`*filter` 之前)的 `*nat` 段:
+
+```
+*nat
+:POSTROUTING ACCEPT [0:0]
+-A POSTROUTING -s 10.8.0.0/24 -o <外网网卡> -j MASQUERADE
+COMMIT
+```
+
+  4. `ufw reload`,用 `sysctl net.ipv4.ip_forward` 验证。
+  - `DEFAULT_FORWARD_POLICY="ACCEPT"` 只是最后手段:它会让整台机器在所有网卡之间(公网口、wg0、Docker 网桥)无过滤转发,公网 VPS 会变成开放路由器。
 
 ## 6. 隧道 MTU
 

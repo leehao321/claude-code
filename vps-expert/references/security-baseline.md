@@ -73,7 +73,7 @@ sshd -T | grep -Ei 'passwordauthentication|permitrootlogin|^port'   # 以生效�
 ```bash
 echo $SSH_CONNECTION | awk '{print "当前会话连的服务器端口:", $4}'   # 最可靠,含 ssh.socket 场景
 sshd -T | grep -i '^port'                                              # 仅是配置值;ssh.socket 场景下实际监听端口以 ss / SSH_CONNECTION 为准
-ss -lntp | grep -E 'sshd|systemd'                                      # 监听者(ssh.socket 时属主是 systemd,端口看 systemctl cat ssh.socket 的 ListenStream)
+ss -lntp | grep -E '"sshd"|"systemd"'                                      # 监听者(ssh.socket 时属主是 systemd,端口看 systemctl cat ssh.socket 的 ListenStream)
 ```
 
 **第二步:先放行,启用前确认规则已添加**
@@ -107,11 +107,13 @@ cat >/etc/fail2ban/jail.d/sshd.local <<'CONF'
 [sshd]
 enabled  = true
 port     = <实际ssh端口>
-backend  = systemd                # Debian 12 等只有 journald、没有 /var/log/auth.log 的系统必须加
+# Debian 12 等只有 journald、没有 /var/log/auth.log 的系统必须设 backend = systemd
+backend  = systemd
 ignoreip = 127.0.0.1/8 ::1 <你的固定IP>
 CONF
+fail2ban-client -t                 # 配置测试,必须通过(inline 注释写在值后面会让配置失效,注释要单独成行)
 systemctl enable --now fail2ban && systemctl restart fail2ban
-fail2ban-client status sshd
+fail2ban-client status sshd        # 必须能列出 sshd 这个 jail,否则保护并没有生效
 ```
 
 - 端口必须与实际 SSH 端口一致,否则不生效;上面尖括号占位符要整个换成真实值,没有固定 IP 就把 `<你的固定IP>` 那一项删掉(别留着尖括号写进去)。没有固定公网 IP 就不要把会过期的 IP 写进 `ignoreip`,并知道自己有被封的风险。

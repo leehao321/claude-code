@@ -55,6 +55,15 @@ cat /etc/openwrt_release
 
 旁路由(side router / 单臂路由):接在主路由 LAN 口下,不拨号,客户端把网关(和/或 DNS)指向旁路由,由它做分流/代理。
 
+**先备份并看清警告**:改 LAN 地址会让当前连接断开,先记好新地址、确认与自己电脑同网段,并保留一条回到旧地址的办法(如暂时手动给电脑设固定 IP)。
+
+```sh
+B=/root/config.bak.$(date +%F); cp -a /etc/config $B; sysupgrade -b /tmp/backup-$(date +%F).tar.gz   # 备份;tar 记得 scp 拷到电脑
+# 改坏了的回滚:cp -a $B/. /etc/config/ && /etc/init.d/network restart
+```
+
+万一联不上了:OpenWrt 有 failsafe 模式(启动时按住机型对应的按键,具体按键按型号检索),进去后 `mount_root` 再恢复配置。
+
 在旁路由上(LuCI:网络 → 接口 → LAN,或用 `uci`):
 
 ```sh
@@ -67,8 +76,6 @@ uci set dhcp.lan.ignore='1'                   # 旁路由上不开 DHCP,避免�
 uci commit
 /etc/init.d/network restart && /etc/init.d/dnsmasq restart
 ```
-
-> 改 LAN 地址会让当前连接断开:先确认新地址与自己电脑同网段、记好新地址,并**保留一条能回到旧地址的办法**(如暂时手动给电脑设固定 IP)。
 
 单臂模式通常还要在防火墙 LAN 区域开启 IP 动态伪装(masquerade),避免回程不对称;LuCI 在 网络 → 防火墙 → 区域 → lan → "IP 动态伪装"。验证:
 
