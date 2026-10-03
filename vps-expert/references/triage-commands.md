@@ -90,10 +90,13 @@ mtr -rwzbc 100 <目标>
   3. 登录后执行:
 
 ```bash
-ss -lntp | grep sshd      # 确认 sshd 真实端口(默认 22)
-ufw allow 22/tcp          # 端口不是 22 就换成实际端口
-ufw status verbose        # 确认规则已在(此时 ufw 是启用的,能看到规则)
+ss -lntp | grep -E 'sshd|systemd'      # 看 Local Address 列冒号后的数字,那就是 SSH 实际端口
+ufw allow <ssh端口>/tcp                # 把尖括号整个换成上一行看到的数字(没改过才是 22,不要凭记忆写)
+ufw status verbose                     # 确认规则已在(此时 ufw 是启用的,能看到规则)
 ```
+
+  - 白话解释(小白要看):`ufw allow 端口/tcp` = 在防火墙上给这个端口开一扇门,允许外面连进来;端口号是服务的"门牌号",SSH 默认是 22。
+  - 如果上面的 `ss` 命令输出为空,或监听者是 `systemd`:说明系统用的是 `ssh.socket`(Ubuntu 22.10+/24.04 默认),端口以 `systemctl cat ssh.socket` 里的 `ListenStream` 为准,不是 sshd_config 里的 `Port`。
 
   4. 不行再临时 `ufw disable`。**注意:`ufw disable` 期间整台机器没有主机防火墙,面板、数据库等监听端口会暴露公网,只能作几分钟的应急。** 恢复登录后立刻 `ss -lntp` 检查,再按 `security-baseline.md` §4 的顺序重配,最后确认 `ufw status verbose` 显示 `Status: active`。
 - 没有控制台入口、或登不进去:
@@ -103,7 +106,7 @@ ufw status verbose        # 确认规则已在(此时 ufw 是启用的,能看到
   4. 云厂商若有"重置防火墙/安全组"功能,先确认被挡的是不是它而不是 ufw。
 - 下次顺序:查实际 SSH 端口 → `ufw allow <ssh端口>/tcp` → `ufw show added` 确认(未启用时 `ufw status` 看不到规则)→ 加自动撤销保险 → `ufw enable` → 新会话验证 → `ufw status verbose` 复核。云厂商安全组也要放行。
 
-**改了 SSH 端口连不上**:多半是新端口没在防火墙/安全组放行,或 sshd 没重载成功。控制台里 `sshd -t`、`ss -lntp | grep sshd`、检查 `Port` 配置与防火墙规则。
+**改了 SSH 端口连不上**:多半是新端口没在防火墙/安全组放行,或 sshd 没重载成功。控制台里 `sshd -t`、`ss -lntp | grep -E 'sshd|systemd'`(监听者是 systemd 说明用了 `ssh.socket`,端口看 `systemctl cat ssh.socket` 的 `ListenStream`,改 `Port` 不够,见 `security-baseline.md` §4)、检查防火墙规则。
 
 **跑分掉一半**:先区分 CPU 被限还是磁盘。`vmstat 1 5` 看 `st`(偷 CPU)与 `wa`(IO 等待);对比历史 NQ/YABS 的单核分与 fio;邻居高负载时间段复测,别只测一次。
 
@@ -118,14 +121,16 @@ ufw status verbose        # 确认规则已在(此时 ufw 是启用的,能看到
 破坏性操作,**确认闸门在前**:
 
 1. **备份**,然后让用户贴 `lsblk -f` 的输出。**在用户确认设备名、该设备未挂载、且为空盘或已备份之前,不给 `mkfs`**。如果它已有文件系统或挂载点(FSTYPE/MOUNTPOINT 非空),明确警告 `mkfs` 不可逆地清空数据并要求用户明确回复"确认清空",否则停止。
-2. 确认后,用**确认过的设备**(不是猜的):
+   **第一轮回复要预告完整流程**,让用户心里有数:`lsblk -f` 确认设备 → 备份 `/etc/fstab` → `mkfs` → 用 UUID 写 fstab 并加 `nofail` → `mount -a` 验证 → `df -hT` 复核。
+2. 确认后,用**确认过的设备**(不是猜的)。新盘常常没有分区(如 VPS 上的 `/dev/vdb` 下没有 `vdb1`):二选一并向用户确认——先分区(如 `parted /dev/vdb mklabel gpt mkpart data ext4 1MiB 100%`,得到 `/dev/vdb1`),或整盘直接 `mkfs.ext4 /dev/vdb`。下面用变量 `DEV` 统一替换,别在各行里分别写设备名:
 
 ```bash
-mkfs.ext4 /dev/sdX1                  # sdX1 替换为用户确认的分区;整盘无分区表时按实际
-mkdir -p /data && mount /dev/sdX1 /data
-blkid /dev/sdX1                      # 记下 UUID
+DEV=/dev/vdb1                        # 换成用户确认过的设备(分区或整盘),下面所有命令都用它
+mkfs.ext4 "$DEV"
+mkdir -p /data && mount "$DEV" /data
 cp /etc/fstab /etc/fstab.bak.$(date +%F)
-echo 'UUID=<上面的uuid> /data ext4 defaults,nofail 0 2' >> /etc/fstab
+echo "UUID=$(blkid -s UUID -o value "$DEV") /data ext4 defaults,nofail 0 2" >> /etc/fstab
+tail -n 1 /etc/fstab                 # 确认写进去的是真实 UUID,不是空的
 umount /data && mount -a             # 验证 fstab 写对了;报错立刻修,别重启
 df -hT /data                         # 验证已挂载
 ```

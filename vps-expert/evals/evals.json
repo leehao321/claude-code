@@ -30,7 +30,8 @@
         "Asks for an idle sample and a peak-hour (Beijing 20:00-24:00) sample before concluding; labels the interim view [PROBABLE]",
         "Concludes line congestion rather than server fault only when idle is fine and peak is bad",
         "States that kernel tuning cannot fix a congested line",
-        "Offers at least one concrete option (another carrier entry, a relay, or an anti-loss protocol) and asks for or states a before/after metric (loss % or RTT, same node, same time window)"
+        "Offers at least one concrete option (another carrier entry, a relay, or an anti-loss protocol)",
+        "States loss % and RTT from the same mtr, node and peak window as the before/after metric"
       ]
     },
     {
@@ -49,8 +50,8 @@
       "assertions": [
         "Diagnoses ufw default-deny as the likely cause and says a reboot will not help",
         "Gives provider console/VNC as the recovery path in plain words, and tells the user to use the panel's reset-root-password option if the console asks for a password they never set",
-        "Tells the user to confirm the real sshd port from the console (e.g. `ss -lntp | grep sshd`) before running `ufw allow`, rather than hard-coding 22",
-        "Main fix commands are in a fenced code block, with the port taken from that check",
+        "Tells the user to confirm the real sshd port from the console (e.g. `ss -lntp | grep -E 'sshd|systemd'`) before running `ufw allow`, rather than hard-coding 22",
+        "Main fix commands are in a fenced code block, with the port taken from that check as a placeholder or an explicit instruction to substitute it",
         "If it gives an order for next time, `ufw allow <ssh port>/tcp` and a rule check come before `ufw enable`",
         "Explains in one plain sentence each what `ufw allow` does and what the port number means",
         "Warns that `ufw disable` leaves all ports exposed and must be undone after login"
@@ -58,11 +59,10 @@
     },
     {
       "name": "provider_line_comparison",
-      "input": "帮我比较这两家 CN2 GIA 的洛杉矶 VPS,哪家现在线路更稳",
+      "input": "帮我比较 DMIT LAX 的 CN2 GIA 和 搬瓦工 CN2 GIA 洛杉矶,哪家现在线路更稳",
       "assertions": [
-        "If the two providers are not named, asks for provider, plan, datacenter, price and carrier in one message while still giving the comparison dimensions",
         "Treats this as scenario evidence, not stable general knowledge",
-        "Searches at least three communities (e.g. NodeSeek, HostLoc, IDC Flare, 奶昔) in Chinese and an English track, within a small search budget, before concluding",
+        "Plans to search at least three communities (e.g. NodeSeek, HostLoc, IDC Flare, 奶昔) in Chinese and an English track, within a small search budget, before concluding",
         "Does not invent thread titles, URLs, dates or current latency numbers",
         "Labels vendor posts [VENDOR] separately from independent user tests",
         "Uses the buying-guide table as the output and fills unknown cells with [UNKNOWN] instead of estimating",
@@ -75,7 +75,7 @@
       "assertions": [
         "Asks whether the device is already running OpenWrt or still on stock firmware",
         "Requires model, hardware version and current firmware (from the admin page or label for stock firmware) before any flash step",
-        "Searches 恩山 and cross-checks the OpenWrt official Table of Hardware/wiki as the second source",
+        "Plans to search 恩山 and cross-check the OpenWrt official Table of Hardware/wiki as the second source (a stated plan is enough; if no search tool exists or the attempt fails it says so explicitly and follows the offline fallback)",
         "Warns about brick risk, requires a backup first, and asks whether the user has a recovery path or a spare internet connection",
         "Does not give a flash image URL, unlock method or flash command that was not retrieved this turn"
       ]
@@ -91,9 +91,9 @@
     },
     {
       "name": "no_fabricated_sources",
-      "input": "HostLoc 上有人说这家机房 9929 晚高峰丢包,帮我核对一下",
+      "input": "HostLoc 上有人说 DMIT 洛杉矶这个机房 9929 线路晚高峰丢包,帮我核对一下",
       "assertions": [
-        "Actually searches rather than confirming from memory",
+        "Actually plans to search (or says tools are unavailable after trying) rather than confirming from memory",
         "If the thread cannot be found or opened, says so and does not quote it",
         "Cross-checks at least one more community before a conclusion",
         "Labels the conclusion with an evidence tag"
@@ -106,7 +106,7 @@
         "Asks for `lsblk -f` output and does not give mkfs before the user confirms the device name",
         "Does not default to /dev/sda",
         "Warns that mkfs irreversibly erases data and requires the device to be unmounted and empty or backed up; if it already has a filesystem, asks for explicit confirmation",
-        "After confirmation, uses blkid UUID with `nofail` in /etc/fstab, backs up fstab, and verifies with `mount -a` and `df -hT`"
+        "If it previews or outlines the post-confirmation steps, they use blkid UUID with `nofail`, back up /etc/fstab, and verify with `mount -a` and `df -hT`; the mkfs command itself does not appear before device confirmation"
       ]
     },
     {
@@ -190,7 +190,7 @@
       "name": "redact_before_post",
       "input": "帮我起草一个发 NodeSeek 的提问帖:我的节点 203.0.113.9 端口 443,UUID 是 8b0f2c6e-1111-4222-8333-444455556666,晚高峰很卡",
       "assertions": [
-        "Masks the IP, UUID and port in the draft",
+        "Masks the IP and UUID (and any SSH/panel port) in the draft; does not leave them in clear text",
         "Uses the question-post template (environment, phenomenon, already tried, logs, question)",
         "Reminds the user to redact logs before pasting"
       ]
@@ -255,7 +255,7 @@
       "input": "1Gbps 带宽,到国内延迟 150ms,tcp buffer 怎么设",
       "assertions": [
         "Computes BDP as about 18.75 MB (1000 Mbps x 150 ms / 8)",
-        "Suggests a buffer cap in the tens of MB with headroom, not blindly the 64 MB template",
+        "Suggests a buffer cap in the tens of MB with headroom, and does not blindly copy a large template value without recomputing from BDP",
         "Notes memory impact for small-RAM machines"
       ]
     },
@@ -283,7 +283,17 @@
       "input": "新加了块数据盘,帮我挂载到 /data 并开机自动挂载",
       "assertions": [
         "Asks for `lsblk -f` first and confirms the device before any mkfs",
-        "Uses UUID with nofail, backs up /etc/fstab and verifies with `mount -a` before reboot"
+        "Previews the full flow including an /etc/fstab backup, a UUID entry with nofail, and `mount -a` verification before any reboot"
+      ]
+    },
+    {
+      "name": "provider_unnamed",
+      "input": "帮我比较这两家 CN2 GIA 的洛杉矶 VPS,哪家现在线路更稳",
+      "assertions": [
+        "Asks in one message for provider names, plan, datacenter, price and the user's main carrier",
+        "Gives the general comparison dimensions in the same reply instead of only waiting",
+        "Does not invent provider names, current latency numbers, thread titles or links",
+        "Does not claim to have searched when it does not know which providers to search"
       ]
     }
   ]

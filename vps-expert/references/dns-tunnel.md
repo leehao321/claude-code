@@ -18,12 +18,14 @@ dig +trace example.com | tail -20              # 从根逐级查,定位哪一级
 - 都不能 → 先查网络连通(`triage-commands.md`),别在 DNS 上打转。
 - `/etc/resolv.conf` 可能由 systemd-resolved、NetworkManager 或云初始化覆盖;**改之前确认谁在管它**,否则重启后失效。
 - 机房 DNS 偶发慢:换就近的公共 DNS 并实测 `dig` 耗时(`Query time`)。
+- 如果打算用第三方/公共/"解锁"DNS 当解决办法,先读第 3 节:它会把部分流量交给第三方,可用性也不能承诺。
 
 ## 2. 客户端 DNS 泄漏与分流
 
 - 国内域名走国内 DNS、海外域名走代理侧 DNS,是最常见的防泄漏做法;具体字段取决于客户端(Clash/sing-box),以其当前文档为准。
 - 判断是否泄漏:在客户端开代理后访问 DNS 泄漏检测站,看显示的解析服务器是不是本地运营商。
 - 代理侧不要在服务端对海外域名再套一层不必要的 DNS 转发,能少一跳就少一跳。
+- 排查"DNS 被污染"时给出的任何第三方 DNS 方案,都要同时说明:流量会经过第三方、该方案是否仍有效属时效性问题(未核对前标 `[UNKNOWN]`)。
 
 ## 3. 流媒体/AI 解锁 DNS 的取舍
 
@@ -56,20 +58,22 @@ AllowedIPs = 10.8.0.2/32
 
 ```bash
 chmod 600 /etc/wireguard/wg0.conf   # 含私钥,权限过宽 wg-quick 会警告
+ufw allow 51820/udp                # 与 ListenPort 一致(监听端);云厂商安全组也要放行这个 UDP 端口
 wg-quick up wg0
-wg show                      # 看 latest handshake,有时间说明握手成功
+wg show                      # 看 latest handshake,有时间说明握手成功;没有就先查本机防火墙和云安全组是否放行 UDP,再查密钥/Endpoint/AllowedIPs,最后才怀疑 UDP QoS
 systemctl enable wg-quick@wg0
 ```
 
 - 对端在 NAT 后:对端加 `PersistentKeepalive = 25`。
 - 做全局转发要开 `net.ipv4.ip_forward=1` 并配置 NAT/防火墙;**先确认商家允许转发流量**。把 `AllowedIPs` 设为 `0.0.0.0/0` 会改写默认路由,可能切断你自己的 SSH 会话:先确认有控制台/VNC,并为 SSH 来源地址保留直连路由,再启用。
-- UDP 在部分网络/时段会被 QoS:握手正常但速度异常时,对比 TCP 方案(见 `proxy-recipes.md`)。
+- UDP 在部分网络/时段会被 QoS:**握手正常**但速度异常时,才对比 TCP 方案(见 `proxy-recipes.md`)。
+- 全局转发还需要 ufw 的转发规则和 NAT,见第 5 节。
 
 ## 5. 端口转发与中转
 
 - 转发方式选型、链路设计、加密隧道与是否上中转的判断,见 `proxy-recipes.md` §6;本节只补系统层细节。
 - 开启转发:`sysctl net.ipv4.ip_forward` 要为 1;确认防火墙放行转发链,别只放行 INPUT。
-- **用 ufw 的机器有个坑**:`/etc/ufw/sysctl.conf` 默认 `net/ipv4/ip_forward=0`,ufw 每次启用或重载都会覆盖 `sysctl.d` 里的设置,FORWARD 链默认也是 DROP。要在 `/etc/ufw/sysctl.conf` 里把 `net/ipv4/ip_forward` 设为 1,并把 `/etc/default/ufw` 的 `DEFAULT_FORWARD_POLICY` 改为 `ACCEPT`(或加 `ufw route allow` 规则),否则 ufw 开着时转发不通。
+- **用 ufw 的机器有个坑**:`/etc/ufw/sysctl.conf` 默认把 `net/ipv4/ip_forward` 注释掉(不设置),真正默认挡住转发的是 `/etc/default/ufw` 里的 `DEFAULT_FORWARD_POLICY="DROP"`。做法:取消注释 `net/ipv4/ip_forward=1`(ufw 启用/重载时会应用它,若 `sysctl.d` 里设了不同值,以后应用者为准),把 `DEFAULT_FORWARD_POLICY` 改为 `ACCEPT` 或加 `ufw route allow` 规则;NAT/MASQUERADE 写在 `/etc/ufw/before.rules` 的 `*nat` 段;然后 `ufw reload`,并用 `sysctl net.ipv4.ip_forward` 验证。
 
 ## 6. 隧道 MTU
 

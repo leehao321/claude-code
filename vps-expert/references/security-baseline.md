@@ -72,8 +72,8 @@ sshd -T | grep -Ei 'passwordauthentication|permitrootlogin|^port'   # 以生效�
 
 ```bash
 echo $SSH_CONNECTION | awk '{print "当前会话连的服务器端口:", $4}'   # 最可靠,含 ssh.socket 场景
-sshd -T | grep -i '^port'                                              # 配置值
-ss -lntp | grep -E 'sshd|systemd'                                      # 监听者(ssh.socket 时属主是 systemd)
+sshd -T | grep -i '^port'                                              # 仅是配置值;ssh.socket 场景下实际监听端口以 ss / SSH_CONNECTION 为准
+ss -lntp | grep -E 'sshd|systemd'                                      # 监听者(ssh.socket 时属主是 systemd,端口看 systemctl cat ssh.socket 的 ListenStream)
 ```
 
 **第二步:先放行,启用前确认规则已添加**
@@ -107,20 +107,28 @@ cat >/etc/fail2ban/jail.d/sshd.local <<'CONF'
 [sshd]
 enabled  = true
 port     = <实际ssh端口>
+backend  = systemd                # Debian 12 等只有 journald、没有 /var/log/auth.log 的系统必须加
 ignoreip = 127.0.0.1/8 ::1 <你的固定IP>
 CONF
 systemctl enable --now fail2ban && systemctl restart fail2ban
 fail2ban-client status sshd
 ```
 
-- 端口必须与实际 SSH 端口一致,否则不生效。没有固定公网 IP 就不要把会过期的 IP 写进 `ignoreip`,并知道自己有被封的风险。
+- 端口必须与实际 SSH 端口一致,否则不生效;上面尖括号占位符要整个换成真实值,没有固定 IP 就把 `<你的固定IP>` 那一项删掉(别留着尖括号写进去)。没有固定公网 IP 就不要把会过期的 IP 写进 `ignoreip`,并知道自己有被封的风险。
 - 改端口、换密钥的试错期容易把自己封掉(ssh-agent 一次提供多把密钥也会触发 `Too many authentication failures`)。测试登录时用 `ssh -o IdentitiesOnly=yes -i <指定密钥> -p <端口> ...`。
 - 自救:用商家控制台/VNC(或换一个 IP)登录后执行 `fail2ban-client set sshd unbanip <你的IP>`。
 - 自动安全更新(可选):Debian/Ubuntu 用 `unattended-upgrades`;**内核更新后可能需要重启**,生产机器要安排窗口。
 
 ## 6. 面板与服务暴露
 
-- **面板默认只监听 127.0.0.1**(面板设置里的监听地址,用 `ss -lntp` 验证),通过 SSH 隧道访问:`ssh -N -L 8443:127.0.0.1:<面板端口> <用户>@<服务器IP>`,然后浏览器开 `http://127.0.0.1:8443`。
+**面板安装顺序(必须这样做,而不是装完再想)**:
+
+1. **安装前**:确认防火墙只放行 SSH 和节点端口,**面板端口不放行**;Docker 部署发布端口写成 `-p 127.0.0.1:<端口>:<端口>`(ufw 管不到 Docker)。
+2. **装完立刻**(先于添加任何节点):用服务器上的面板命令行(如 `x-ui`)或 SSH 隧道,改账号和强口令、把监听地址设为 127.0.0.1;**不要**通过公网 HTTP 端口去改。
+3. **重启面板后**用 `ss -lntp` 确认面板端口不在 `0.0.0.0` 或 `[::]` 上。
+4. 通过后才添加节点。
+
+- **面板必须只监听 127.0.0.1**(这是安装后的必做动作,不是默认值;用 `ss -lntp` 验证),通过 SSH 隧道访问:`ssh -N -L 8443:127.0.0.1:<面板端口> <用户>@<服务器IP>`,然后浏览器开 `http://127.0.0.1:8443`。
 - 确需公网访问:必须 TLS(域名证书或反代)+ 改默认端口/账号/强口令 + 限制来源 IP,否则不得对公网开放。3x-ui 之类面板默认 HTTP 明文,口令会被明文传输。订阅端口通常要对客户端开放,单独走 TLS,不套用来源 IP 白名单。
 - Docker 部署:`-p 127.0.0.1:<端口>:<端口>`(ufw 管不到 Docker 发布的端口);若用 `--network host`,该写法无效,须改面板自身监听地址。
 - 面板的一键安装脚本同样是 `curl | bash` 来源:先下载阅读、核对官方 README 当前命令,再执行。

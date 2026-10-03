@@ -13,6 +13,7 @@ fm=$(tr -d '\r' < SKILL.md | awk 'NR==1 && /^---$/ {f=1; next} f && /^---$/ {clo
 printf '%s\n' "$fm" | grep -qx 'name: vps-expert' || err "frontmatter 里 name 不是 vps-expert"
 desc=$(printf '%s\n' "$fm" | sed -n 's/^description: *//p')
 [ -n "$desc" ] || err "description 为空"
+case "$desc" in '>'|'|'|'>-'|'|-'|'>+'|'|+') err "description 不能用折叠/块标量写法(长度检查会失效),请写成单行";; esac
 dlen=$(printf '%s' "$desc" | python3 -c 'import sys; print(len(sys.stdin.read()))')   # 按字符计数,不受 locale 影响
 [ "$dlen" -le 1024 ] || err "description 超过 1024 字符(当前 $dlen)"
 
@@ -78,11 +79,14 @@ for m in '[CONFIRMED]' '[PROBABLE]' '[CONTESTED]' '[UNKNOWN]' '[VENDOR]' '## 红
   grep -qF -- "$m" SKILL.md || err "SKILL.md 缺少关键规则标记: $m"
 done
 
-# ---- 疑似真实密钥/UUID(占位符与示例白名单除外)----
-hits=$(grep -rEni '[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}' . --include='*.md' --include='*.json' --include='*.sh' \
-  | grep -viE '00000000-0000-0000-0000-000000000000|12345678-1234-|1111-4222-8333-444455556666|scripts/validate.sh')
-[ -z "$hits" ] || { echo "$hits"; err "发现疑似真实 UUID(需要的话加入白名单)"; }
-hits=$(grep -rEn 'PrivateKey *= *[A-Za-z0-9+/]{43}=' . --include='*.md' --include='*.json')
-[ -z "$hits" ] || { echo "$hits"; err "发现疑似真实 WireGuard 私钥"; }
+# ---- 疑似真实密钥/UUID(只抽取 token 比对白名单;scripts/validate.sh 按路径排除)----
+uuid_hits=$(grep -rEnoi '[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}' . --include='*.md' --include='*.json' --include='*.sh' --include='*.conf' \
+  | grep -v '^\./scripts/validate\.sh:' \
+  | grep -viE ':(00000000-0000-0000-0000-000000000000|12345678-1234-1234-1234-123456789012|8b0f2c6e-1111-4222-8333-444455556666)$')
+[ -z "$uuid_hits" ] || { echo "$uuid_hits"; err "发现疑似真实 UUID(确需保留就把整串加入白名单)"; }
+# WireGuard / Xray Reality 私钥:key 名后紧跟 43 位 base64/base64url(占位符以 < 开头,不会命中)
+key_hits=$(grep -rEnoi 'private[_ -]?key"?[[:space:]]*[:=][[:space:]]*"?[A-Za-z0-9_+/-]{43}=?' . --include='*.md' --include='*.json' --include='*.sh' --include='*.conf' \
+  | grep -v '^\./scripts/validate\.sh:')
+[ -z "$key_hits" ] || { echo "$key_hits"; err "发现疑似真实私钥"; }
 
 [ $fail -eq 0 ] && echo "OK" || exit 1

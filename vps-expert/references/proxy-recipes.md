@@ -88,13 +88,15 @@ ss -lntp | grep xray                      # 确认监听端口
 for h in <候选1> <候选2> <候选3>; do
   echo "== $h"
   # 握手耗时 + 实际协商的 HTTP 版本(期望 http=2)
-  curl -so /dev/null --http2 -w "http=%{http_version} connect=%{time_connect} tls=%{time_appconnect}\n" https://$h
+  curl -so /dev/null --http2 --max-time 10 -w "http=%{http_version} dns=%{time_namelookup} connect=%{time_connect} tls=%{time_appconnect}\n" https://$h
   # TLS 版本与 ALPN(期望 Protocol: TLSv1.3,ALPN protocol: h2)
-  echo | openssl s_client -connect $h:443 -servername $h -tls1_3 -alpn h2 2>/dev/null | grep -E 'Protocol|ALPN'
+  echo | timeout 10 openssl s_client -connect $h:443 -servername $h -tls1_3 -alpn h2 2>/dev/null | grep -E 'Protocol|ALPN'
 done
 ```
 
-通过条件:`http=2`、`TLSv1.3`、`ALPN protocol: h2` 三项都满足才留作候选,再在候选里挑握手耗时最低的;任何一项不满足就丢弃。
+通过条件:`http=2`、`TLSv1.3`、`ALPN protocol: h2` 三项都满足才留作候选;任何一项不满足就丢弃。
+
+**比较时用差值,别直接比累计值**:curl 的 `connect`、`tls` 都是从开始累计的,包含 `dns`。纯 TCP 往返约等于 `connect − dns`,TLS 握手约等于 `tls − connect`。每个候选跑 2–3 次取最小值(第一次常含冷 DNS 缓存),再在候选里挑最低的。
 
 - 优先选与 VPS **同地区、同机房网络**、握手时间很低的站点。
 - 握手耗时与"该站点真实所在位置"明显不符(例如 VPS 在洛杉矶,dest 却是远在欧洲的站点),可能成为被主动探测识别的特征。这是圈内一直在讨论的点,没有一劳永逸的答案,所以**每台机器单独实测、定期复查**。
