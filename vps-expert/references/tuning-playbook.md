@@ -62,6 +62,16 @@ net.ipv4.ip_local_port_range = 10240 65535
 net.ipv4.tcp_syncookies = 1
 ```
 
+**排队延迟(bufferbloat)**:空闲 RTT 正常、跑满带宽时 RTT 暴涨,才需要这条;仅 KVM/独服可改(LXC/OpenVZ 不能改 qdisc)。把出口限速设到略低于实际带宽,让排队发生在自己这里而不是上游:
+
+```bash
+modprobe sch_cake 2>/dev/null; tc qdisc replace dev <网卡> root cake bandwidth <略低于实测带宽>mbit
+tc qdisc show dev <网卡>              # 验证
+# 回滚:tc qdisc del dev <网卡> root
+```
+
+限得过低会直接拉低吞吐,按实测带宽的 90–95% 起步,前后用同一套测试对比;重启后失效,确认有效再写成开机服务。
+
 文件句柄:`/etc/security/limits.d/99-nofile.conf` 或 systemd 服务里 `LimitNOFILE=1048576`(代理服务的 unit 里设最直接)。
 
 ## 4. 分虚拟化 / 分内存策略

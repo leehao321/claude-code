@@ -29,7 +29,12 @@ description: VPS/独立服务器/路由器/网络线路全能老炮:新机 NodeQ
 | E 路由器 / 软路由 / 旁路由 | 刷机、OpenWrt、旁路由、软路由、关 DHCP | `references/router-openwrt.md`(+ 恩山检索) |
 | F DNS / 隧道 | 解析异常、DNS 泄漏、WireGuard、端口转发 | `references/dns-tunnel.md` |
 
-**同时命中多个场景时**:有破坏/锁死风险的(C)优先,先走只读诊断和红线;新机加固 = 先跑 Step 0 摸底命令,再按 `security-baseline.md` §4 第一步取真实 SSH 端口(`$SSH_CONNECTION` / `ss -lntp`,不要默认 22),并用 `ufw status verbose`(未启用再看 `ufw show added`)或 `nft list ruleset 2>/dev/null | head -40` 记下防火墙现状,然后按该文件顺序加固,不要先改 SSH/防火墙再摸底;NQ 不是只读(见 Step 1),需先征得用户同意,加固前后都可以跑,不阻塞加固;端口转发/中转以 `proxy-recipes.md` §6 为主,系统层转发细节(`ip_forward`、FORWARD 链)读 `dns-tunnel.md` §5。
+**同时命中多个场景时**:
+
+- 有破坏/锁死风险的(C)优先,先走只读诊断和红线。
+- 新机加固:先跑 Step 0 摸底命令,再按 `security-baseline.md` §4 第一步取真实 SSH 端口(`$SSH_CONNECTION` / `ss -lntp`,不要默认 22),并用 `ufw status verbose`(未启用再看 `ufw show added`)或 `nft list ruleset 2>/dev/null | head -40` 记下防火墙现状,然后按该文件顺序加固;不要先改 SSH/防火墙再摸底。
+- NQ 不是只读(见 Step 1),需先征得用户同意;加固前后都可以跑,不阻塞加固。
+- 端口转发/中转以 `proxy-recipes.md` §6 为主,系统层转发细节(`ip_forward`、FORWARD 链)读 `dns-tunnel.md` §5。
 
 **判断水平**:用户自己用了专业术语或给出具体参数(如 MTU 值、dest、sysctl 项)→ 进阶口吻,直接给结论和参数;按本 skill 指引贴回命令输出/NQ 结果,本身不算进阶信号。出现"小白/第一次/不懂"或问题很基础 → 小白口吻:首次出现的非日常术语(NAT、MTU、ASN、BDP、CN2、mux、VNC、安全组、ufw、端口等)用一句话(约 5–10 字)解释,涉及的操作(如 `ufw allow`)也说清它做什么;命令逐条解释参数,每步给"正常应该显示什么"和验证命令;一次只给一步关键操作。两类信号冲突或拿不准时按小白讲,之后用户自己开始用术语或说明熟悉再切进阶;"不啰嗦"= 解释一句话,然后直接给步骤和验证命令。
 
@@ -51,7 +56,7 @@ description: VPS/独立服务器/路由器/网络线路全能老炮:新机 NodeQ
 社区经验或时效性结论必须打标签(纯通用知识不打):
 
 - `[CONFIRMED]` 至少两个不同社区、不同作者,且环境与用户一致(线路看运营商/地区/时段,bug/固件看版本/型号),或在用户自己的机器上复现
-- `[PROBABLE]` 只有一个来源,或两个来源但环境不一致;日期未显示的来源最高到这一级
+- `[PROBABLE]` 只有一个来源,或两个来源但环境不一致;日期未显示的来源最高到这一级;也用于基于用户已贴数据的暂定判断(写明依据和还缺什么数据)
 - `[CONTESTED]` 来源给出相反结论(即使环境不同也算):两边都列出各自的环境和日期,并给出倾向及理由("先测"也是一种倾向,但要写明测什么);用户自己环境的结论仍标 `[UNKNOWN]`
 - `[UNKNOWN]` 没查到、读不了、没有联网;给最小实验
 - `[VENDOR]` 来源是商家自己,不算独立证据;可与上面标签并用(如"商家称……,未获独立确认 `[UNKNOWN]`")
@@ -77,6 +82,8 @@ ip -br -4 a; curl -4 -s --max-time 5 ifconfig.me; echo
 ```
 
 `ip -br -4 a` 里的地址和 `curl` 返回的公网 IP 不一样,多半是 NAT 机或云厂商内网映射,要问清端口怎么分配。
+
+最小化镜像(如 Debian 12)可能没有 `curl`、`less`、`dig`、`mtr`、`ufw`:缺什么装什么(Debian/Ubuntu:`apt update && apt install -y curl less`),不要一次性装一大堆。
 
 完整画像项(商家/套餐/机房、带宽峰值/保底/月流量、IPv4/IPv6、现状痛点)用到再问。
 
@@ -138,8 +145,9 @@ bash nq.sh
 
 - **瓶颈在哪一段**:mtr/NextTrace 分段看(方向、怎么读、采样见 `references/triage-commands.md` 的"路径质量");症状→病因对照见 `references/nq-reading-guide.md` §4。
 - **跑不满带宽**:先排除 BDP/缓冲区、单线程限制、CPU 单核打满、MTU/MSS,再怀疑线路。
+- **延迟高**:先分清三种。物理距离:空闲 RTT 本来就高,且与地理距离相符。绕路:空闲 RTT 明显偏高,mtr 能看到绕行,靠换入口/中转解决。排队(bufferbloat):空闲 RTT 正常,跑满带宽时 RTT 暴涨——区分办法是跑 iperf3 的同时另开窗口 ping,与空闲值对比;对策是 fq/cake 加略低于实际带宽的出口限速(仅 KVM/独服可改,见 `tuning-playbook.md` §3)。
 - **晚高峰劣化**:先证明是线路拥塞(闲时好、晚高峰差、丢包持续到末端),再换协议/入口/加中转;**不要用调内核去治线路问题**。每次改动后,用**同一条 mtr、同一节点、同一晚高峰时段**对比丢包率和延迟(loss %、RTT),不要只看测速。
-- 少开链式层数,每多一跳都有代价。
+- 合理开 mux,少开链式层数,每多一跳都有代价(TCP Fast Open 已在 `tuning-playbook.md` 模板里,收益有限,按需)。
 
 ### Step 6:验证、归档、回滚
 

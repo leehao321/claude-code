@@ -58,7 +58,7 @@ xray uuid
 openssl rand -hex 8   # shortId:长度必须是偶数位(0~16 位十六进制,可留空),奇数位 Xray 会启动报错
 ```
 
-较新的 Xray 版本里 `dest` 也可写作 `target`,以所装版本的文档为准。客户端侧需要:服务器地址、端口、UUID、`flow`、`serverName`、`publicKey`、`shortId`,以及 uTLS 指纹(如 chrome)。
+较新的 Xray 版本里 `dest` 也可写作 `target`,以所装版本的文档为准。客户端导入方式见下面"安装与启动"第 5 步。
 
 ### 安装与启动(小白路径,Xray)
 
@@ -75,7 +75,13 @@ ss -lntp | grep xray                      # 确认监听端口
 ```
 
 4. **放行端口**:防火墙(ufw 等)和商家云防火墙/安全组都要放行节点端口(顺序与防锁死见 `security-baseline.md`)。
-5. **客户端填写**:服务器地址、端口、UUID、flow(`xtls-rprx-vision`)、serverName(= dest 域名)、publicKey、shortId、uTLS 指纹(如 chrome)。
+5. **客户端导入**:大多数客户端(v2rayN、NekoBox、Shadowrocket 等)支持"从剪贴板导入"分享链接。把下面的占位符换成你的值,整行复制到客户端导入(字段名和参数随 Xray/客户端版本可能不同,以实际为准):
+
+```
+vless://<UUID>@<服务器IP>:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=<dest域名>&fp=chrome&pbk=<publicKey>&sid=<shortId>&type=tcp#<备注>
+```
+
+   `pbk` 填**公钥**,**私钥永远不进分享链接**;IPv6 地址要加方括号,备注里的中文最好 URL 编码。手动填写时对应字段:服务器地址、端口、UUID、flow、serverName(= dest 域名)、publicKey、shortId、uTLS 指纹(如 chrome)。
 6. **首次验证**:客户端连上后,访问 IP 查询站,显示的应是这台 VPS 的出口 IP;连不上先看 `journalctl -u xray -n 50 --no-pager` 里最独特的一行。
 
 ## 3. Reality 的 dest 怎么选

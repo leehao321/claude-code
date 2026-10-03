@@ -16,12 +16,23 @@
 
 ## 2. SSH 密钥登录
 
-在**本地电脑**生成并上传(已有密钥可跳过生成):
+在**本地电脑**生成并上传(已有密钥可跳过生成)。
+
+**Linux / macOS**:
 
 ```bash
 ssh-keygen -t ed25519 -C "vps-$(date +%F)"
 ssh-copy-id -p <ssh端口> <用户>@<服务器IP>
 ```
+
+**Windows(PowerShell,Windows 10/11 自带 OpenSSH;没有 `ssh-copy-id`,`$(date)` 也不能用)**:
+
+```powershell
+ssh-keygen -t ed25519 -C vps
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh -p <ssh端口> <用户>@<服务器IP> "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+```
+
+也可以把公钥内容(`.pub` 文件里那一行)粘贴到商家面板的"SSH 密钥"输入框。下面的 `KEY_OK` 验证两种系统都一样,但单引号里的 `'echo KEY_OK; id'` 要在 PowerShell(不是 cmd)里运行。
 
 在**新终端**强制只用密钥验证(不会回退到服务器密码):
 
@@ -79,6 +90,7 @@ ss -lntp | grep -E '"sshd"|"systemd"'                                      # 监
 **第二步:先放行,启用前确认规则已添加**
 
 ```bash
+command -v ufw >/dev/null || { apt update && apt install -y ufw; }   # Debian 默认没装;Ubuntu 自带(未启用)。装完是未启用状态
 ufw allow <ssh端口>/tcp          # 必须与上面输出一致
 ufw allow <节点端口>/tcp         # 按实际协议放行 tcp/udp
 ufw show added                   # 启用前列出已添加规则(未启用时 ufw status 只显示 inactive)
@@ -103,20 +115,23 @@ ufw status verbose
 
 ```bash
 apt install -y fail2ban           # Debian/Ubuntu;其他系统用对应包管理器
-cat >/etc/fail2ban/jail.d/sshd.local <<'CONF'
+SSHP=${SSH_CONNECTION##* }        # 当前会话连的服务器端口(最后一个字段)
+[ -n "$SSHP" ] || SSHP=$(sshd -T | awk '/^port /{print $2; exit}')   # sudo/控制台下可能为空,退而取配置值
+echo "SSH 端口: $SSHP"            # 必须是一个数字;ssh.socket 场景以 ss -lntp 看到的为准,不对就手动改
+cat >/etc/fail2ban/jail.d/sshd.local <<CONF
 [sshd]
 enabled  = true
-port     = <实际ssh端口>
+port     = $SSHP
 # Debian 12 等只有 journald、没有 /var/log/auth.log 的系统必须设 backend = systemd
 backend  = systemd
-ignoreip = 127.0.0.1/8 ::1 <你的固定IP>
 CONF
-fail2ban-client -t                 # 配置测试,必须通过(inline 注释写在值后面会让配置失效,注释要单独成行)
+grep -n 'port' /etc/fail2ban/jail.d/sshd.local   # 确认端口是真实数字,没有残留的尖括号
+fail2ban-client -t                 # 配置测试,必须通过(注意:行内注释写在值后面会让配置失效,注释要单独成行)
 systemctl enable --now fail2ban && systemctl restart fail2ban
 fail2ban-client status sshd        # 必须能列出 sshd 这个 jail,否则保护并没有生效
 ```
 
-- 端口必须与实际 SSH 端口一致,否则不生效;上面尖括号占位符要整个换成真实值,没有固定 IP 就把 `<你的固定IP>` 那一项删掉(别留着尖括号写进去)。没有固定公网 IP 就不要把会过期的 IP 写进 `ignoreip`,并知道自己有被封的风险。
+- 端口必须与实际 SSH 端口一致,否则封禁不生效(而且 `fail2ban-client -t` 查不出来,只会在真正封禁时出错)。有固定公网 IP 的话,在 `[sshd]` 里追加一行 `ignoreip = 127.0.0.1/8 ::1 <你的固定IP>`;没有固定 IP 就不要加(别把会过期的 IP 写进 `ignoreip`),并知道自己有被封的风险。
 - 改端口、换密钥的试错期容易把自己封掉(ssh-agent 一次提供多把密钥也会触发 `Too many authentication failures`)。测试登录时用 `ssh -o IdentitiesOnly=yes -i <指定密钥> -p <端口> ...`。
 - 自救:用商家控制台/VNC(或换一个 IP)登录后执行 `fail2ban-client set sshd unbanip <你的IP>`。
 - 自动安全更新(可选):Debian/Ubuntu 用 `unattended-upgrades`;**内核更新后可能需要重启**,生产机器要安排窗口。

@@ -107,7 +107,7 @@ ufw status verbose                     # 确认规则已在(此时 ufw 是启用
   4. 云厂商若有"重置防火墙/安全组"功能,先确认被挡的是不是它而不是 ufw。
 - 下次顺序:查实际 SSH 端口 → `ufw allow <ssh端口>/tcp` → `ufw show added` 确认(未启用时 `ufw status` 看不到规则)→ 加自动撤销保险 → `ufw enable` → 新会话验证 → `ufw status verbose` 复核。云厂商安全组也要放行。
 
-**改了 SSH 端口连不上**:多半是新端口没在防火墙/安全组放行,或 sshd 没重载成功。控制台里 `sshd -t`、`ss -lntp | grep -E '"sshd"|"systemd"'`(监听者是 systemd 说明用了 `ssh.socket`,端口看 `systemctl cat ssh.socket` 的 `ListenStream`,改 `Port` 不够,见 `security-baseline.md` §4)、检查防火墙规则。
+**改了 SSH 端口连不上**:多半是新端口没在防火墙/安全组放行,或 sshd 没重载成功。控制台里 `sshd -t`、`ss -lntp | grep -E '"sshd"|"systemd"'`(监听者是 systemd 说明用了 `ssh.socket`,端口看 `systemctl cat ssh.socket` 的 `ListenStream`,改 `Port` 不够,见 `security-baseline.md` §3(改端口)与 §4(查实际端口))、检查防火墙规则。
 
 **跑分掉一半**:先区分 CPU 被限还是磁盘。`vmstat 1 5` 看 `st`(偷 CPU)与 `wa`(IO 等待);对比历史 NQ/YABS 的单核分与 fio;邻居高负载时间段复测,别只测一次。
 
