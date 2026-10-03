@@ -131,4 +131,4 @@ LXC/OpenVZ 常不允许自建 swap;KVM 小内存也可以考虑 zram(压缩内�
 - sysctl:删除 `/etc/sysctl.d/99-tuning.conf` 后 `sysctl --system`,或恢复备份的 `/etc/sysctl.conf`。
 - 服务配置:改前 `cp config.json config.json.bak`,出问题直接还原并重启服务。
 - 防火墙:改前导出规则(`nft list ruleset > /root/nft.bak` 或 `iptables-save > /root/ipt.bak`)。
-- 换内核:保留旧内核并确认 GRUB 能选回;提前确认商家救援模式可用。
+- 换内核:保留旧内核并确认 GRUB 能选回;提前确认商家救援模式可用。回退方法:通过商家控制台/VNC 在开机时进入 GRUB 的高级选项菜单,选旧内核启动,进系统后再把旧内核设为默认(设置默认项的命令随发行版不同,先查);装新内核前不要卸载旧内核。

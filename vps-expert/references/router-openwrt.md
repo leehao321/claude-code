@@ -58,8 +58,10 @@ cat /etc/openwrt_release
 **先备份并看清警告**:改 LAN 地址会让当前连接断开,先记好新地址、确认与自己电脑同网段,并保留一条回到旧地址的办法(如暂时手动给电脑设固定 IP)。
 
 ```sh
-B=/root/config.bak.$(date +%F); cp -a /etc/config $B; sysupgrade -b /tmp/backup-$(date +%F).tar.gz   # 备份;tar 记得 scp 拷到电脑
-# 改坏了的回滚:cp -a $B/. /etc/config/ && /etc/init.d/network restart
+B=/root/config.bak.$(date +%F-%H%M); mkdir -p "$B" && cp -a /etc/config/. "$B/" && echo "备份目录: $B"   # 记下这个目录名
+sysupgrade -b /tmp/backup-$(date +%F).tar.gz   # tar 记得 scp 拷到电脑
+# 改坏了的回滚(重新登录后是新的 shell,变量已经没了):先 ls -d /root/config.bak.* 找到上面记下的目录,把下面的路径换成它,不要照抄变量:
+#   cp -a /root/config.bak.<日期-时分>/. /etc/config/ && /etc/init.d/network restart
 ```
 
 万一联不上了:OpenWrt 有 failsafe 模式(启动时按住机型对应的按键,具体按键按型号检索),进去后 `mount_root` 再恢复配置。
